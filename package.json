@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/YTG2G3/imposter-bot/issues"
   },
-  "homepage": "https://github.com/YTG2G3/imposter-bot#readme"
+  "homepage": "https://github.com/YTG2G3/imposter-bot#readme",
+  "dependencies": {
+    "discord.js": "^13.6.0"
+  }
 }
