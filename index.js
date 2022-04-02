@@ -1,12 +1,21 @@
-import { Client as DiscordClient, Intents } from "discord.js";
+// Load .env
+require('dotenv').config();
 
-import dotenv from 'dotenv';
-dotenv.config();
+// Create new discord bot client
+const { Client, Intents, Collection } = require("discord.js");
+const bot = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.DIRECT_MESSAGES] });
 
-const client = new DiscordClient({ intents: [Intents.FLAGS.DIRECT_MESSAGES] });
+// Load commands
+bot.commands = new Collection();
 
-client.on('ready', () => {
+// Bot ready
+bot.on('ready', () => {
     console.log('Bot is ready!');
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// Bot received message
+bot.on('message', msg => {
+
+});
+
+bot.login(process.env.DISCORD_TOKEN);
