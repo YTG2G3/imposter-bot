@@ -1,9 +1,12 @@
-import commands from "discord.js";
-import DISCORD_TOKEN from
+import { Client as DiscordClient, Intents } from "discord.js";
 
-const client = new Discord.Client();
+import dotenv from 'dotenv';
+dotenv.config();
+
+const client = new DiscordClient({ intents: [Intents.FLAGS.DIRECT_MESSAGES] });
 
 client.on('ready', () => {
-    console.log('Bot is ready!');});
+    console.log('Bot is ready!');
+});
 
-client.login(bot_token)
+client.login(process.env.DISCORD_TOKEN);
