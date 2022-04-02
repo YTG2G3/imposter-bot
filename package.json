@@ -4,6 +4,7 @@
   "description": "This bot is cool! Hello world Dogs are cool asdkasjdajsdk",
   "main": "index.js",
   "scripts": {
+    "start": "node .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
