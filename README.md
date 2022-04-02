@@ -1,2 +1,3 @@
 # imposter-bot
-This bot is amazing!
+This bot is cool!
+Hello world
