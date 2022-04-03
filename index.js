@@ -24,11 +24,6 @@ bot.once('ready', () => {
     console.log('Bot is ready!');
 });
 
-// Bot joins
-bot.on('guildCreate', guild => {
-
-});
-
 // Bot received command
 bot.on('interactionCreate', async interaction => {
     if (!interaction.isCommand()) return;
