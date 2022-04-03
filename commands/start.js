@@ -177,7 +177,7 @@ module.exports = {
             });
             await channel.send("Discussion time for 2 minutes!");
 
-            await delay(5 * 1000); // FIXME - 120
+            await delay(15 * 1000); // FIXME - 120
 
             // Vote 3
             await match.update({ state: 3 });
@@ -276,7 +276,7 @@ module.exports = {
         for (let m of gamers) {
             await m.send(`Match is over! View your results in http://imposterbot.kro.kr/result/${result.id}`);
             await members.doc(m.id).set({ matchid: null });
-            await m.roles.delete(interaction.guild.roles.cache.find(r => r.id === serverDoc.data().roleid));
+            // await m.roles.delete(interaction.guild.roles.cache.find(r => r.id === serverDoc.data().roleid));
         }
 
         await servers.doc(interaction.guild.id).update({ matchid: null, members: [] });
