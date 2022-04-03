@@ -34,7 +34,7 @@ module.exports = {
         let alive = {}, votes = {};
         for (let m of serverDoc.data().members) {
             alive[m] = true;
-            votes[m] = 0;
+            votes[m] = null;
         }
 
         let day = 0;
@@ -59,19 +59,15 @@ module.exports = {
         let memberNicks = interaction.guild.members.cache.filter(m => alive[m.id]).map(m => m.nickname);
 
         // Let them know their roles
-        let specialRoles = [];
         for (let m of members) {
             switch (m[0]) {
                 case imposter:
-                    specialRoles.push(m);
                     await m[1].send("You are the imposter!");
                     break;
                 case doctor:
-                    specialRoles.push(m);
                     await m[1].send("You are the doctor!");
                     break;
                 case sheriff:
-                    specialRoles.push(m);
                     await m[1].send("You are the sheriff!");
                     break;
                 default:
@@ -88,7 +84,7 @@ module.exports = {
             embed.addField(i, memberNicks[i]);
         }
 
-        for (let m of specialRoles) {
+        for (let m of members) {
             await m[1].send(embed);
         }
 

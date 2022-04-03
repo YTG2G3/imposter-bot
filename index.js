@@ -10,6 +10,7 @@ const bot = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.DIRECT_ME
 
 // Load commands
 const fs = require('fs');
+const { match } = require('assert');
 require('./deploy-command');
 
 bot.commands = new Collection();
@@ -33,14 +34,35 @@ bot.on('message', async msg => {
     if (udoc.exists && udoc.data().matchid) {
         // in game
         let matchDoc = await matches.doc(udoc.data().matchid).get();
+        let pick = Number(msg.content);
+        let aliveCnt = matchDoc.data().alive.length;
 
-        if (!matchDoc.data().alive[msg.author.id]) return; // dead
+        if (!matchDoc.data().alive[msg.author.id]) return await msg.reply("Dead men tell no tales."); // dead
+        if (!(0 <= pick && pick < aliveCnt)) return await msg.reply("Out of index!");
 
         // Ability
         if (matchDoc.data().state === 0) {
-            if (matchDoc.data().imposter === msg.author.id) {
-                await matches.doc(udoc.data().matchid).set();
+            switch (msg.author.id) {
+                case matchDoc.data().imposter:
+                    await matches.doc(udoc.data().matchid).update({ kill: pick });
+                    await msg.reply("Target aimed...");
+                    break;
+                case matchDoc.data().doctor:
+                    await matches.doc(udoc.data().matchid).update({ heal: pick });
+                    await msg.reply("Scalpel...");
+                    break;
+                case matchDoc.data().sheriff:
+                    await matches.doc(udoc.data().matchid).update({ investigate: pick });
+                    await msg.reply("Suspicious huh...");
+                    break;
+                default:
+                    await msg.reply("**Control your own destiny or someone else will.** -Jack Welch");
+                    break;
             }
+        }
+        else if (matchDoc.data().state === 2) {
+            await matches.doc(udoc.data().matchid).update({ [`votes.${msg.author.id}`]: pick });
+            await msg.reply("Voted!");
         }
     }
 });
