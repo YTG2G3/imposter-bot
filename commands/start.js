@@ -29,13 +29,18 @@ module.exports = {
 
         if (serverDoc.data().matchid) return await interaction.reply("[!] Ongoing game.");
 
-        if (serverDoc.data().members.length < 5) return await interaction.reply("[!] Not enough players!");
+        if (serverDoc.data().members.length < 3) return await interaction.reply("[!] Not enough players!");
+
+        await interaction.reply("[-] Starting game!");
+        await interaction.guild.members.fetch();
+        await interaction.guild.roles.fetch();
+        await interaction.guild.channels.fetch();
 
         // Create match
-        let alive = {}, votes = {};
+        let _alive = {}, _votes = {};
         for (let m of serverDoc.data().members) {
-            alive[m] = true;
-            votes[m] = null;
+            _alive[m] = true;
+            _votes[m] = null;
         }
 
         let day = 0;
@@ -49,7 +54,8 @@ module.exports = {
             serverid: interaction.guild.id,
             state: 0,
             kill: null, heal: null, investigate: null,
-            alive, votes, imposter, doctor, sheriff
+            alive: _alive, votes: _votes,
+            imposter, doctor, sheriff
         });
 
         await servers.doc(interaction.guild.id).update({ matchid: match.id });
@@ -60,23 +66,23 @@ module.exports = {
 
         // Prepare stuff
         let channel = interaction.guild.channels.cache.get(serverDoc.data().channelid);
-        let gamers = interaction.guild.members.cache.filter(m => alive[m.id]);
-        let memberNicks = interaction.guild.members.cache.filter(m => alive[m.id]).map(m => m.nickname);
+        let gamers = serverDoc.data().members.map(m => interaction.guild.members.cache.get(m));
+        let memberNicks = gamers.map(m => m.displayName);
 
         // Let them know their roles
         for (let m of gamers) {
-            switch (m[0]) {
+            switch (m.id) {
                 case imposter:
-                    await m[1].send("You are the imposter!");
+                    await m.send("You are the imposter!");
                     break;
                 case doctor:
-                    await m[1].send("You are the doctor!");
+                    await m.send("You are the doctor!");
                     break;
                 case sheriff:
-                    await m[1].send("You are the sheriff!");
+                    await m.send("You are the sheriff!");
                     break;
                 default:
-                    await m[1].send("You are a civilian!");
+                    await m.send("You are a civilian!");
                     break;
             }
         }
@@ -90,7 +96,7 @@ module.exports = {
         }
 
         for (let m of gamers) {
-            await m[1].send(embed);
+            await m.send({ embeds: [embed] });
         }
 
         let victory = 0; // 1- imposter 2- citizens
@@ -104,18 +110,18 @@ module.exports = {
             await channel.send(`Day ${day}: Please check your DM for instructions. You are given 15 seconds to decide.`);
 
             for (let m of gamers) {
-                switch (m[0]) {
+                switch (m.id) {
                     case imposter:
-                        await m[1].send("Who do you wish to kill? (Enter a number)");
+                        await m.send("Who do you wish to kill? (Enter a number)");
                         break;
                     case doctor:
-                        await m[1].send("Who do you wish to save? (Enter a number)");
+                        await m.send("Who do you wish to save? (Enter a number)");
                         break;
                     case sheriff:
-                        await m[1].send("Who do you wish to investigate on? (Enter a number)");
+                        await m.send("Who do you wish to investigate on? (Enter a number)");
                         break;
                     default:
-                        await m[1].send("**Control your own destiny or someone else will.** -Jack Welch");
+                        await m.send("**Control your own destiny or someone else will.** -Jack Welch");
                         break;
                 }
             }
@@ -126,12 +132,13 @@ module.exports = {
             await match.update({ state: 1 });
             await channel.send(`Night has passed! Let's see what happened in the dark.`);
 
-            let { kill, heal, investigate } = await match.get();
+            let { kill, heal, investigate } = (await match.get()).data();
+            await match.update({ kill: null, heal: null, investigate: null });
             let victim = null;
 
             if (kill !== null && kill !== heal) {
-                victim = gamers.get(serverDoc.data().members[kill]);
-                alive[victim.id] = false;
+                victim = gamers[kill];
+                _alive[victim.id] = false;
 
                 await match.update({ [`alive.${victim.id}`]: false });
                 await victim.roles.remove(interaction.guild.roles.cache.get(serverDoc.data().roleid));
@@ -143,12 +150,12 @@ module.exports = {
                 await channel.send("Wow, what a peaceful night!");
             }
 
-            if (sheriff !== victim) {
+            if (investigate !== null && sheriff !== victim) {
                 if (serverDoc.data().members[investigate] === imposter) {
-                    await gamers.get(sheriff).send(`${memberNicks[investigate]} is the imposter!`);
+                    await gamers.find(m => m.id === sheriff).send(`${memberNicks[investigate]} is the imposter!`);
                 }
                 else {
-                    await gamers.get(sheriff).send(`${memberNicks[investigate]} is not the imposter.`);
+                    await gamers.find(m => m.id === sheriff).send(`${memberNicks[investigate]} is not the imposter.`);
                 }
             }
 
@@ -163,14 +170,14 @@ module.exports = {
                         deny: [Permissions.ALL]
                     },
                     {
-                        id: role.id,
+                        id: serverDoc.data().roleid,
                         allow: [Permissions.FLAGS.READ_MESSAGE_HISTORY, Permissions.FLAGS.VIEW_CHANNEL, Permissions.FLAGS.SEND_MESSAGES]
                     }
                 ]
             });
             await channel.send("Discussion time for 2 minutes!");
 
-            await delay(120 * 1000);
+            await delay(15 * 1000); // FIXME - 120
 
             // Vote 3
             await match.update({ state: 3 });
@@ -181,7 +188,7 @@ module.exports = {
                         deny: [Permissions.ALL]
                     },
                     {
-                        id: role.id,
+                        id: serverDoc.data().roleid,
                         allow: [Permissions.FLAGS.READ_MESSAGE_HISTORY, Permissions.FLAGS.VIEW_CHANNEL]
                     }
                 ]
@@ -189,7 +196,7 @@ module.exports = {
             await channel.send("Time to vote! Check your DM for instructions. You are given 15 seconds to decide.");
 
             for (let m of gamers) {
-                await m[1].send("Please respond with the number corresponding to the person you want to kick out! Choose wisely: you can only pick one person every vote.");
+                await m.send("Please respond with the number corresponding to the person you want to kick out! Choose wisely: you can only pick one person every vote.");
             }
 
             await delay(15 * 1000);
@@ -198,7 +205,8 @@ module.exports = {
             await match.update({ state: 4 });
             await channel.send("Time is over. Who shall be kicked out of the village this time?");
 
-            let { votes } = await match.get();
+            let { votes } = (await match.get()).data();
+            await match.update({ votes: _votes });
             let voteCnt = new Array(serverDoc.data().members.length).fill(0);
 
             for (let m of serverDoc.data().members) {
@@ -222,8 +230,8 @@ module.exports = {
 
             if (maxCnt > 1) await channel.send("Tied!");
             else {
-                let kick = gamers.get(serverDoc.data().members[maxIndex]);
-                alive[kick.id] = false;
+                let kick = gamers[maxIndex];
+                _alive[kick.id] = false;
 
                 await match.update({ [`alive.${kick.id}`]: false });
                 await kick.roles.remove(interaction.guild.roles.cache.get(serverDoc.data().roleid));
@@ -234,11 +242,11 @@ module.exports = {
             // Check before next night
             let aliveCnt = 0;
             for (let m of serverDoc.data().members) {
-                if (alive[m]) aliveCnt++;
+                if (_alive[m]) aliveCnt++;
             }
 
-            if (alive[imposter] && aliveCnt <= 2) victory = 1;
-            else if (!alive[imposter]) victory = 2;
+            if (_alive[imposter] && aliveCnt <= 2) victory = 1;
+            else if (!_alive[imposter]) victory = 2;
         }
 
         // Game over
@@ -255,7 +263,7 @@ module.exports = {
 
         let savedNames = {};
         for (let m of gamers) {
-            savedNames[m[0]] = m[1].nickname;
+            savedNames[m.id] = m.displayName;
         }
 
         let result = await results.add({
@@ -265,9 +273,10 @@ module.exports = {
         });
 
         // Reset
-        for (let m of serverDoc.data().members) {
-            await m[1].send(`Match is over! View your results in http://imposterbot.kro.kr/result/${result.id}`);
-            await members.doc(m).set({ matchid: null });
+        for (let m of gamers) {
+            await m.send(`Match is over! View your results in http://imposterbot.kro.kr/result/${result.id}`);
+            await members.doc(m.id).set({ matchid: null });
+            // await m.roles.delete(interaction.guild.roles.cache.find(r => r.id === serverDoc.data().roleid));
         }
 
         await servers.doc(interaction.guild.id).update({ matchid: null, members: [] });
