@@ -17,6 +17,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN);
 (async () => {
     try {
         console.log('Started refreshing application (/) commands.');
+        console.log(commands);
 
         await rest.put(
             Routes.applicationCommands(clientId),
