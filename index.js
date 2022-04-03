@@ -4,6 +4,13 @@ require('dotenv').config();
 // Load firebase
 const { members, matches, servers } = require('./firebase');
 
+// Load express
+const express = require('express');
+const app = express();
+
+app.use(express.static(`${__dirname}/build`));
+app.listen(process.env.PORT || 3001, () => console.log("Express server opened!"));
+
 // Create new discord bot client
 const { Client, Intents, Collection } = require("discord.js");
 const bot = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.DIRECT_MESSAGES] });
