@@ -28,7 +28,7 @@ bot.once('ready', async () => {
 // Bot receive number
 bot.on('message', async msg => {
     if (isNaN(msg.content)) return;
-
+    if (msg.guild) return;
     let udoc = await members.doc(msg.author.id).get();
 
     if (udoc.exists && udoc.data().matchid) {
@@ -62,7 +62,7 @@ bot.on('message', async msg => {
                     break;
             }
         }
-        else if (matchDoc.data().state === 2) {
+        else if (matchDoc.data().state === 3) {
             await matches.doc(udoc.data().matchid).update({ [`votes.${msg.author.id}`]: pick });
             await msg.reply("Voted!");
         }
@@ -73,6 +73,7 @@ bot.on('message', async msg => {
 bot.on('interactionCreate', async interaction => {
     if (!interaction.isCommand()) return;
     if (interaction.user.bot) return;
+    if (!interaction.guild) return;
 
     if (interaction.guild.roles.cache.size === 0) {
         console.log("Fetching roles...");

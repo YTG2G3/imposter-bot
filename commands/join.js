@@ -18,7 +18,7 @@ module.exports = {
                 members: firestore.FieldValue.arrayRemove(interaction.user.id)
             });
 
-            await interaction.member.roles.remove(interaction.guild.roles.cache.find(r => r.id === serverDoc.data().roleid));
+            await interaction.member.roles.remove(interaction.guild.roles.cache.get(serverDoc.data().roleid));
             await interaction.reply("[-] Left the game.");
         }
         else { // join
@@ -26,7 +26,7 @@ module.exports = {
                 members: firestore.FieldValue.arrayUnion(interaction.user.id)
             });
 
-            await interaction.member.roles.add(interaction.guild.roles.cache.find(r => r.id === serverDoc.data().roleid));
+            await interaction.member.roles.add(interaction.guild.roles.cache.get(serverDoc.data().roleid));
             await interaction.reply("[-] Joined the game!");
         }
     }

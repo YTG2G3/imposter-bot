@@ -1,6 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { servers, matches } = require('../firebase');
-const { MessageEmbed } = require('discord.js');
+const { servers, matches, results, members } = require('../firebase');
+const { MessageEmbed, Permissions } = require('discord.js');
 const delay = require('delay');
 
 const threeRandomIntegers = (max) => {
@@ -40,28 +40,31 @@ module.exports = {
 
         let day = 0;
 
-        let rand = threeRandomIntegers(max);
+        let rand = threeRandomIntegers(serverDoc.data().members.length);
         let imposter = serverDoc.data().members[rand[0]];
         let doctor = serverDoc.data().members[rand[1]];
         let sheriff = serverDoc.data().members[rand[2]];
 
         let match = await matches.add({
             serverid: interaction.guild.id,
-            state: 0, ongoing: true,
+            state: 0,
             kill: null, heal: null, investigate: null,
             alive, votes, imposter, doctor, sheriff
         });
 
         await servers.doc(interaction.guild.id).update({ matchid: match.id });
 
+        for (let m of serverDoc.data().members) {
+            await members.doc(m).set({ matchid: match.id });
+        }
+
         // Prepare stuff
-        let channel = interaction.guild.channels.cache.find(c => c.id === serverDoc.data().channelid);
-        let members = interaction.guild.members.cache.filter(m => alive[m.id]);
+        let channel = interaction.guild.channels.cache.get(serverDoc.data().channelid);
+        let gamers = interaction.guild.members.cache.filter(m => alive[m.id]);
         let memberNicks = interaction.guild.members.cache.filter(m => alive[m.id]).map(m => m.nickname);
-        let matchid = match.id;
 
         // Let them know their roles
-        for (let m of members) {
+        for (let m of gamers) {
             switch (m[0]) {
                 case imposter:
                     await m[1].send("You are the imposter!");
@@ -86,19 +89,21 @@ module.exports = {
             embed.addField(i, memberNicks[i]);
         }
 
-        for (let m of members) {
+        for (let m of gamers) {
             await m[1].send(embed);
         }
 
+        let victory = 0; // 1- imposter 2- citizens
+
         // Start game
-        while (true) {
+        while (victory === 0) {
             // Night 0
             day++;
 
             await match.update({ state: 0 });
             await channel.send(`Day ${day}: Please check your DM for instructions. You are given 15 seconds to decide.`);
 
-            for (let m of members) {
+            for (let m of gamers) {
                 switch (m[0]) {
                     case imposter:
                         await m[1].send("Who do you wish to kill? (Enter a number)");
@@ -114,22 +119,157 @@ module.exports = {
                         break;
                 }
             }
+
             await delay(15 * 1000);
 
             // Morning 1
-            let { kill, heal, investigate } = await match.get();
-
             await match.update({ state: 1 });
             await channel.send(`Night has passed! Let's see what happened in the dark.`);
 
+            let { kill, heal, investigate } = await match.get();
+            let victim = null;
 
-            if (kill !== heal) {
-                let victim = members.find(m => m.id === serverDoc.data().members[kill]);
+            if (kill !== null && kill !== heal) {
+                victim = gamers.get(serverDoc.data().members[kill]);
+                alive[victim.id] = false;
 
-                await victim.roles.remove(interaction.guild.roles.cache.find(r => r.id === serverDoc.data().roleid));
+                await match.update({ [`alive.${victim.id}`]: false });
+                await victim.roles.remove(interaction.guild.roles.cache.get(serverDoc.data().roleid));
                 await victim.send("You have been eliminated :(");
                 await channel.send(`Unfortunately, our good friend ${memberNicks[kill]} has passed away. RIP.`);
             }
+
+            if (victim === null) {
+                await channel.send("Wow, what a peaceful night!");
+            }
+
+            if (sheriff !== victim) {
+                if (serverDoc.data().members[investigate] === imposter) {
+                    await gamers.get(sheriff).send(`${memberNicks[investigate]} is the imposter!`);
+                }
+                else {
+                    await gamers.get(sheriff).send(`${memberNicks[investigate]} is not the imposter.`);
+                }
+            }
+
+            await delay(5 * 1000);
+
+            // Discussion 2
+            await match.update({ state: 2 });
+            await channel.edit({
+                permissionOverwrites: [
+                    {
+                        id: interaction.guild.roles.everyone,
+                        deny: [Permissions.ALL]
+                    },
+                    {
+                        id: role.id,
+                        allow: [Permissions.FLAGS.READ_MESSAGE_HISTORY, Permissions.FLAGS.VIEW_CHANNEL, Permissions.FLAGS.SEND_MESSAGES]
+                    }
+                ]
+            });
+            await channel.send("Discussion time for 2 minutes!");
+
+            await delay(120 * 1000);
+
+            // Vote 3
+            await match.update({ state: 3 });
+            await channel.edit({
+                permissionOverwrites: [
+                    {
+                        id: interaction.guild.roles.everyone,
+                        deny: [Permissions.ALL]
+                    },
+                    {
+                        id: role.id,
+                        allow: [Permissions.FLAGS.READ_MESSAGE_HISTORY, Permissions.FLAGS.VIEW_CHANNEL]
+                    }
+                ]
+            });
+            await channel.send("Time to vote! Check your DM for instructions. You are given 15 seconds to decide.");
+
+            for (let m of gamers) {
+                await m[1].send("Please respond with the number corresponding to the person you want to kick out! Choose wisely: you can only pick one person every vote.");
+            }
+
+            await delay(15 * 1000);
+
+            // Count 4
+            await match.update({ state: 4 });
+            await channel.send("Time is over. Who shall be kicked out of the village this time?");
+
+            let { votes } = await match.get();
+            let voteCnt = new Array(serverDoc.data().members.length).fill(0);
+
+            for (let m of serverDoc.data().members) {
+                if (votes[m]) {
+                    await delay(500);
+                    await channel.send(`${++voteCnt[votes[m]]} vote(s) for ${memberNicks[votes[m]]}`);
+                }
+            }
+
+            let maxIndex = -1, max = -1, maxCnt = 0;
+            for (let i in voteCnt) {
+                if (voteCnt[i] > max) {
+                    maxIndex = i;
+                    max = voteCnt[i];
+                    maxCnt = 1;
+                }
+                else if (voteCnt[i] === max) {
+                    maxCnt++;
+                }
+            }
+
+            if (maxCnt > 1) await channel.send("Tied!");
+            else {
+                let kick = gamers.get(serverDoc.data().members[maxIndex]);
+                alive[kick.id] = false;
+
+                await match.update({ [`alive.${kick.id}`]: false });
+                await kick.roles.remove(interaction.guild.roles.cache.get(serverDoc.data().roleid));
+                await kick.send("You have been kicked out :(");
+                await channel.send(`Adiós, ${memberNicks[maxIndex]}!`);
+            }
+
+            // Check before next night
+            let aliveCnt = 0;
+            for (let m of serverDoc.data().members) {
+                if (alive[m]) aliveCnt++;
+            }
+
+            if (alive[imposter] && aliveCnt <= 2) victory = 1;
+            else if (!alive[imposter]) victory = 2;
         }
+
+        // Game over
+        switch (victory) {
+            case 1: // imposter wins
+                await channel.send("Imposter wins! Game closes in 10 seconds.");
+                break;
+            case 2: // citizens win
+                await channel.send("Citizens win! Game closes in 10 seconds.");
+                break;
+        }
+
+        await match.update({ state: -1 });
+
+        let savedNames = {};
+        for (let m of gamers) {
+            savedNames[m[0]] = m[1].nickname;
+        }
+
+        let result = await results.add({
+            createdAt: new Date(),
+            matchid: match.id,
+            nicknames: savedNames
+        });
+
+        // Reset
+        for (let m of serverDoc.data().members) {
+            await m[1].send(`Match is over! View your results in http://imposterbot.kro.kr/result/${result.id}`);
+            await members.doc(m).set({ matchid: null });
+        }
+
+        await servers.doc(interaction.guild.id).update({ matchid: null, members: [] });
     }
 };

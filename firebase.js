@@ -7,5 +7,6 @@ const firestore = getFirestore(fapp);
 const servers = firestore.collection("servers");
 const matches = firestore.collection("matches");
 const members = firestore.collection("members");
+const results = firestore.collection("results");
 
-module.exports = { servers, matches, members };
+module.exports = { servers, matches, members, results };
