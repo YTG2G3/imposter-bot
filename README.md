@@ -6,7 +6,7 @@ Play Among Us themed Mafia game in discord with your friends!
 
 # User Instructions
 > Make sure you are in the mafia game channel to use the commands  
-> Follow the instructions in game for more information
+> Follow the instructions in game for more information  
 /join to join the game
 /start to start the game (minimum 4 members to start)
 
