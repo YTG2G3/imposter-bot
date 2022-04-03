@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { servers, matches } = require('../firebase');
 const { MessageEmbed } = require('discord.js');
+const delay = require('delay');
 
 const threeRandomIntegers = (max) => {
     let taken = new Array(max);
@@ -57,6 +58,7 @@ module.exports = {
         let channel = interaction.guild.channels.cache.find(c => c.id === serverDoc.data().channelid);
         let members = interaction.guild.members.cache.filter(m => alive[m.id]);
         let memberNicks = interaction.guild.members.cache.filter(m => alive[m.id]).map(m => m.nickname);
+        let matchid = match.id;
 
         // Let them know their roles
         for (let m of members) {
@@ -90,10 +92,11 @@ module.exports = {
 
         // Start game
         while (true) {
-            // Night
+            // Night 0
             day++;
 
-            await channel.send(`Day ${day}: Please check your DM for instructions.`);
+            await match.update({ state: 0 });
+            await channel.send(`Day ${day}: Please check your DM for instructions. You are given 15 seconds to decide.`);
 
             for (let m of members) {
                 switch (m[0]) {
@@ -110,6 +113,22 @@ module.exports = {
                         await m[1].send("**Control your own destiny or someone else will.** -Jack Welch");
                         break;
                 }
+            }
+            await delay(15 * 1000);
+
+            // Morning 1
+            let { kill, heal, investigate } = await match.get();
+
+            await match.update({ state: 1 });
+            await channel.send(`Night has passed! Let's see what happened in the dark.`);
+
+
+            if (kill !== heal) {
+                let victim = members.find(m => m.id === serverDoc.data().members[kill]);
+
+                await victim.roles.remove(interaction.guild.roles.cache.find(r => r.id === serverDoc.data().roleid));
+                await victim.send("You have been eliminated :(");
+                await channel.send(`Unfortunately, our good friend ${memberNicks[kill]} has passed away. RIP.`);
             }
         }
     }

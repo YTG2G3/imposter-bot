@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 // Load firebase
-const { members, matches } = require('./firebase');
+const { members, matches, servers } = require('./firebase');
 
 // Create new discord bot client
 const { Client, Intents, Collection } = require("discord.js");
@@ -32,13 +32,15 @@ bot.on('message', async msg => {
     let udoc = await members.doc(msg.author.id).get();
 
     if (udoc.exists && udoc.data().matchid) {
-        // in game
+        // In game
         let matchDoc = await matches.doc(udoc.data().matchid).get();
+        let serverDoc = await servers.doc(matchDoc.data().serverid).get();
         let pick = Number(msg.content);
         let aliveCnt = matchDoc.data().alive.length;
 
-        if (!matchDoc.data().alive[msg.author.id]) return await msg.reply("Dead men tell no tales."); // dead
+        if (!matchDoc.data().alive[msg.author.id]) return await msg.reply("Dead men tell no tales.");
         if (!(0 <= pick && pick < aliveCnt)) return await msg.reply("Out of index!");
+        if (!matchDoc.data().alive[serverDoc.data().members[pick]]) return await msg.reply("Already late. Pick someone else.");
 
         // Ability
         if (matchDoc.data().state === 0) {
