@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 // Load firebase
-require('./firebase');
+const { servers } = require('./firebase');
 
 // Create new discord bot client
 const fs = require('fs');
@@ -22,6 +22,11 @@ for (let file of commandFiles) {
 // Bot ready
 bot.once('ready', () => {
     console.log('Bot is ready!');
+});
+
+// Bot joins
+bot.on('guildCreate', guild => {
+
 });
 
 // Bot received command

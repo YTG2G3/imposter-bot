@@ -16,7 +16,7 @@ module.exports = {
                 }]
             });
 
-            servers.doc(interaction.guild.id).set({ channelid: channel.id });
+            servers.doc(interaction.guild.id).update({ channelid: channel.id });
 
             await interaction.reply(`[-] Channel made: <#${channel.id}>`);
         }
