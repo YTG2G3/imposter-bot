@@ -12,12 +12,11 @@ app.use(express.static(`${__dirname}/build`));
 app.listen(process.env.PORT || 3001, () => console.log("Express server opened!"));
 
 // Create new discord bot client
-const { Client, Intents, Collection } = require("discord.js");
-const bot = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.DIRECT_MESSAGES] });
+const { Client, Collection } = require("discord.js");
+const bot = new Client({ intents: ["GUILDS", "GUILD_MESSAGES", "GUILD_MEMBERS", "DIRECT_MESSAGES"], partials: ["CHANNEL"] });
 
 // Load commands
 const fs = require('fs');
-const { match } = require('assert');
 require('./deploy-command');
 
 bot.commands = new Collection();
@@ -33,7 +32,7 @@ bot.once('ready', async () => {
 });
 
 // Bot receive number
-bot.on('message', async msg => {
+bot.on('messageCreate', async msg => {
     if (isNaN(msg.content)) return;
     if (msg.guild) return;
     let udoc = await members.doc(msg.author.id).get();
@@ -43,11 +42,13 @@ bot.on('message', async msg => {
         let matchDoc = await matches.doc(udoc.data().matchid).get();
         let serverDoc = await servers.doc(matchDoc.data().serverid).get();
         let pick = Number(msg.content);
-        let aliveCnt = matchDoc.data().alive.length;
 
-        if (!matchDoc.data().alive[msg.author.id]) return await msg.reply("Dead men tell no tales.");
+        let alive = matchDoc.data().alive;
+        let aliveCnt = Object.keys(alive).filter(m => m).length;
+
+        if (!alive[msg.author.id]) return await msg.reply("Dead men tell no tales.");
         if (!(0 <= pick && pick < aliveCnt)) return await msg.reply("Out of index!");
-        if (!matchDoc.data().alive[serverDoc.data().members[pick]]) return await msg.reply("Already late. Pick someone else.");
+        if (!alive[serverDoc.data().members[pick]]) return await msg.reply("Already late. Pick someone else.");
 
         // Ability
         if (matchDoc.data().state === 0) {
@@ -81,16 +82,6 @@ bot.on('interactionCreate', async interaction => {
     if (!interaction.isCommand()) return;
     if (interaction.user.bot) return;
     if (!interaction.guild) return;
-
-    if (interaction.guild.roles.cache.size === 0) {
-        console.log("Fetching roles...");
-        await interaction.guild.roles.fetch();
-    }
-
-    if (interaction.guild.channels.cache.size === 0) {
-        console.log("Fetching channels...");
-        await interaction.guild.channels.fetch();
-    }
 
     const cmd = bot.commands.get(interaction.commandName);
     if (!cmd) return;
