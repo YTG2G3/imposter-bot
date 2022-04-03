@@ -7,7 +7,7 @@ let rules =
 3. If the player is murdered by the mafia, they must mute\n 
 4. Vote is every morning, using replies to the bot\n
 5. If mafia kills all players, they win\n
-6.If players vote out mafia before all are dead, they win`;
+6. If players vote out mafia before all are dead, they win`;
 
 module.exports = {
 	data: new SlashCommandBuilder()
