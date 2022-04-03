@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 
+
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('ping')
@@ -8,5 +9,3 @@ module.exports = {
 		await interaction.reply('Pong!');
 	},
 };
-
-//amarstupid
