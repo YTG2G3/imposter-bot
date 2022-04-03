@@ -32,8 +32,8 @@ module.exports = {
             });
 
             servers.doc(interaction.guild.id).set({
-                channelid: null,
-                roleid: null,
+                channelid: channel.id,
+                roleid: role.id,
                 members: [],
                 matchid: null
             });
